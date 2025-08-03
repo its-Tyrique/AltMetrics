@@ -1,0 +1,3 @@
+### Get real-time price in USD for BTC and ETH
+GET https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=zar&include_market_cap=true
+Accept: application/json

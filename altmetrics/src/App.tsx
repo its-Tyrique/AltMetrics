@@ -1,54 +1,75 @@
-import { useState, useEffect } from 'react';
-import reactLogo from './assets/react.svg';
-import viteLogo from '/vite.svg';
-import './App.css';
-import axios from 'axios';
+import { useEffect, useState } from 'react';
+import { Container, Table, Spinner, Alert, Badge } from 'react-bootstrap';
+import { fetchCryptoData, type ApiResponse } from './services/coingecko.service';
 
 function App() {
-  const [count, setCount] = useState(0);
-  const [array, setArray] = useState<any[]>([]);
+  const [apiData, setApiData] = useState<ApiResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchApi = async () => {
-      const response = await axios.get('http://localhost:8080/api');
-      const data = Array.isArray(response.data) ? response.data : [];
-      setArray(data);
-        console.log(response.data);
-  };
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const result = await fetchCryptoData();
+        setApiData(result);
+      } catch (err: any) {
+        setError(err.message || 'Failed to fetch crypto data');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    useEffect(() => {
-      fetchApi();
-    }, []);
+    loadData();
+
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-        {array.map((item, index) => (
-          <div key={index}>
-            <p>{item}</p>
-            <br/>
-          </div>
-        ))}
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+      <Container className="py-5">
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <h2>📊 Real-Time Crypto Prices</h2>
+          {apiData && (
+              <Badge bg={apiData.source === 'cache' ? 'info' : 'success'}>
+                {apiData.source === 'cache' ? '⚡ Cached Data' : '🔄 Fresh Data'}
+              </Badge>
+          )}
+        </div>
+
+        {loading && <Spinner animation="border" />}
+        {error && <Alert variant="danger">{error}</Alert>}
+
+        {apiData && (
+            <>
+              <Table striped bordered hover responsive>
+                <thead>
+                <tr>
+                  <th>Coin</th>
+                  <th>Price (USD)</th>
+                  <th>Market Cap (USD)</th>
+                  <th>Last Updated</th>
+                </tr>
+                </thead>
+                <tbody>
+                {apiData.data.map((snapshot) => (
+                    <tr key={snapshot.coin}>
+                      <td>{snapshot.coin.toUpperCase()}</td>
+                      <td>${snapshot.price_usd.toLocaleString()}</td>
+                      <td>${snapshot.market_cap_usd.toLocaleString()}</td>
+                      <td>{new Date(snapshot.timestamp).toLocaleTimeString()}</td>
+                    </tr>
+                ))}
+                </tbody>
+              </Table>
+              <small className="text-muted">
+                Data refreshes automatically every 30 seconds
+              </small>
+            </>
+        )}
+      </Container>
+  );
 }
 
-export default App
+export default App;
